@@ -50,7 +50,16 @@ If your Visual Studio 2022 edition is not `BuildTools`, replace `VS2022INSTALLDI
 
 If `winget` is blocked by policy, install the same products manually and then rerun the verification commands above.
 
-## 4) Create Working Tree
+## 4) Get Windows File Pack
+
+Clone the published Windows file-pack repo first:
+
+```powershell
+$FilePackRoot = "C:\work\opensees_windows_compilation_files"
+git clone https://github.com/nmorabowen/opensees_windows_compilation_files.git $FilePackRoot
+```
+
+## 5) Create Working Tree
 
 Example:
 
@@ -64,20 +73,33 @@ git clone https://github.com/microsoft/vcpkg third_party\vcpkg
 git clone https://github.com/OpenSees/mumps.git third_party\mumps
 ```
 
-## 5) Bring Build Harness Files
+## 6) Copy Build Harness Files Into Target Tree
 
-Copy these from this repository into the target source tree:
+Copy the required files from the Windows file-pack repo into the target source tree.
 
-- `SCRIPTS\build_windows11_full.ps1`
-- `SCRIPTS\init_oneapi_windows11.cmd`
-- `vcpkg.json`
+```powershell
+New-Item -ItemType Directory -Force -Path .\SCRIPTS, .\cmake\cmake | Out-Null
 
-If target source does not support the same CMake options yet (for example `OPS_TCL_RUNTIME_DIR`), port the corresponding CMake changes from:
+Copy-Item "$FilePackRoot\SCRIPTS\build_windows11_full.ps1" .\SCRIPTS\build_windows11_full.ps1 -Force
+Copy-Item "$FilePackRoot\SCRIPTS\init_oneapi_windows11.cmd" .\SCRIPTS\init_oneapi_windows11.cmd -Force
+Copy-Item "$FilePackRoot\SCRIPTS\fix_intel_mpi_windows11.ps1" .\SCRIPTS\fix_intel_mpi_windows11.ps1 -Force
+Copy-Item "$FilePackRoot\SCRIPTS\create_el_ladruno_installer.ps1" .\SCRIPTS\create_el_ladruno_installer.ps1 -Force
+Copy-Item "$FilePackRoot\vcpkg.json" .\vcpkg.json -Force
+Copy-Item "$FilePackRoot\CMakeLists.txt" .\CMakeLists.txt -Force
+Copy-Item "$FilePackRoot\cmake\cmake\OpenSeesDependenciesWin.cmake" .\cmake\cmake\OpenSeesDependenciesWin.cmake -Force
+```
 
-- `CMakeLists.txt`
-- `cmake\cmake\OpenSeesDependenciesWin.cmake`
+Optional: copy the notes themselves into the target tree too:
 
-## 6) Build In Target Tree
+```powershell
+Copy-Item "$FilePackRoot\WINDOWS11_BUILD_RUNBOOK.md" .\WINDOWS11_BUILD_RUNBOOK.md -Force
+Copy-Item "$FilePackRoot\WINDOWS11_BUILD_ANY_OPENSEES_SOURCE.md" .\WINDOWS11_BUILD_ANY_OPENSEES_SOURCE.md -Force
+Copy-Item "$FilePackRoot\WINDOWS11_INSTALLER_EL_LADRUNO.md" .\WINDOWS11_INSTALLER_EL_LADRUNO.md -Force
+```
+
+If the target source does not support the same CMake options yet, the copied `CMakeLists.txt` and `cmake\cmake\OpenSeesDependenciesWin.cmake` are the Windows-specific porting layer this workflow expects.
+
+## 7) Build In Target Tree
 
 From target repo root:
 
@@ -93,7 +115,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File SCRIPTS\build_windows11_full
 
 If MUMPS is not built yet, remove `-SkipMumps`.
 
-## 7) Artifacts You Should Get
+## 8) Artifacts You Should Get
 
 - `build-win11\OpenSees.exe`
 - `build-win11\OpenSeesSP.exe`
@@ -101,7 +123,7 @@ If MUMPS is not built yet, remove `-SkipMumps`.
 - `build-win11\opensees.pyd`
 - launcher files in `build-win11\`
 
-## 8) How To Run
+## 9) How To Run
 
 Interactive serial prompt:
 
@@ -128,7 +150,7 @@ where ifx
 where mpiexec
 ```
 
-## 9) Fast Triage
+## 10) Fast Triage
 
 If configure fails:
 
@@ -144,7 +166,7 @@ If MP/SP fails at `MPI_Init` or `HYD_spawn`:
 - run `mpiexec -n 2 hostname` first
 - solve Intel MPI bootstrap/service issue before debugging OpenSees itself
 
-## 10) Intel MPI Repair (Admin)
+## 11) Intel MPI Repair (Admin)
 
 When `mpiexec -n 2 hostname` fails on Windows client OS, run this from an elevated PowerShell:
 
@@ -156,7 +178,7 @@ If your target repo does not contain this script yet, copy it from this reposito
 
 - `SCRIPTS\fix_intel_mpi_windows11.ps1`
 
-## 11) Build Installer (El Ladruno OpenSees)
+## 12) Build Installer (El Ladruno OpenSees)
 
 After successful build in the target tree, create a redistributable package:
 
@@ -177,9 +199,9 @@ Dedicated installer guide:
 
 - `WINDOWS11_INSTALLER_EL_LADRUNO.md`
 
-## 12) File Pack Required In Any Target Source Tree
+## 13) File Pack Required In Any Target Source Tree
 
-When you apply this workflow to another OpenSees source tree, copy these files from this repository and keep the same destination paths:
+The bootstrap in sections `4)` and `6)` copies these files from the `opensees_windows_compilation_files` repo and preserves the required destination paths:
 
 - `SCRIPTS\build_windows11_full.ps1` -> target repo `SCRIPTS\`
 - `SCRIPTS\init_oneapi_windows11.cmd` -> target repo `SCRIPTS\`
