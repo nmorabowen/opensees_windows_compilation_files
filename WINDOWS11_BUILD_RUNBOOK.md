@@ -22,6 +22,14 @@ Build policy in this repo:
   - `libaec` `1.1.4`
   - `eigen3` `3.4.1#1`
 
+What this runbook assumes:
+
+- you are already inside this repository
+- this repository already contains the Windows build harness files
+- after prerequisites are installed, you only need the third-party folders and the build command
+
+If you are not building this exact repository, use `WINDOWS11_BUILD_ANY_OPENSEES_SOURCE.md` first. That guide explains how to copy the required Windows file-pack files into another OpenSees source tree before compiling.
+
 ## 2) Prerequisites
 
 Install:
@@ -210,9 +218,27 @@ Dedicated installer guide:
 
 ## 11) Reproducible File Pack (What To Share)
 
-If someone else will reproduce this exact Windows 11 flow, provide this file pack and preserve these destination paths:
+If someone else will reproduce this exact Windows 11 flow, they can clone the published Windows file-pack repo and copy the files automatically:
+
+```powershell
+$FilePackRoot = "C:\work\opensees_windows_compilation_files"
+git clone https://github.com/nmorabowen/opensees_windows_compilation_files.git $FilePackRoot
+
+New-Item -ItemType Directory -Force -Path .\SCRIPTS, .\cmake\cmake | Out-Null
+
+Copy-Item "$FilePackRoot\SCRIPTS\build_windows11_full.ps1" .\SCRIPTS\build_windows11_full.ps1 -Force
+Copy-Item "$FilePackRoot\SCRIPTS\init_oneapi_windows11.cmd" .\SCRIPTS\init_oneapi_windows11.cmd -Force
+Copy-Item "$FilePackRoot\SCRIPTS\fix_intel_mpi_windows11.ps1" .\SCRIPTS\fix_intel_mpi_windows11.ps1 -Force
+Copy-Item "$FilePackRoot\SCRIPTS\create_el_ladruno_installer.ps1" .\SCRIPTS\create_el_ladruno_installer.ps1 -Force
+Copy-Item "$FilePackRoot\vcpkg.json" .\vcpkg.json -Force
+Copy-Item "$FilePackRoot\CMakeLists.txt" .\CMakeLists.txt -Force
+Copy-Item "$FilePackRoot\cmake\cmake\OpenSeesDependenciesWin.cmake" .\cmake\cmake\OpenSeesDependenciesWin.cmake -Force
+```
+
+Those commands preserve the required destination paths:
 
 - `SCRIPTS\build_windows11_full.ps1` -> target repo `SCRIPTS\`
+- `SCRIPTS\init_oneapi_windows11.cmd` -> target repo `SCRIPTS\`
 - `SCRIPTS\fix_intel_mpi_windows11.ps1` -> target repo `SCRIPTS\`
 - `SCRIPTS\create_el_ladruno_installer.ps1` -> target repo `SCRIPTS\`
 - `vcpkg.json` -> target repo root
@@ -222,3 +248,11 @@ If someone else will reproduce this exact Windows 11 flow, provide this file pac
 Recommended package name for sharing:
 
 - `OpenSees_Win11_Repro_FilePack.zip`
+
+In plain terms, the sharing workflow is:
+
+1. Another user installs the prerequisites.
+2. They clone their OpenSees source tree.
+3. They clone `opensees_windows_compilation_files`.
+4. They copy the file-pack files into that source tree.
+5. They run the same build command from this runbook.

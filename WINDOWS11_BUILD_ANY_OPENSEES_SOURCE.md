@@ -6,6 +6,21 @@ Last updated: 2026-03-10
 
 Use this when you have a different OpenSees source tree (fork, branch, or fresh clone) and want a repeatable Windows 11 build.
 
+What this guide does in practice:
+
+1. Install the required Windows tools.
+2. Download the OpenSees source tree you want to compile.
+3. Download the Windows file-pack repo that contains the build harness used in this project.
+4. Copy those Windows-specific files into the OpenSees source tree.
+5. Run the build command.
+6. Optionally package the result as an installer or portable zip.
+
+Short version:
+
+- this guide is not just "run one script"
+- you are overlaying this project's Windows build files on top of another OpenSees source tree
+- after that, you compile from the target repo root
+
 ## 2) Required Tools
 
 - Visual Studio 2022 with C++ workload
@@ -59,6 +74,8 @@ $FilePackRoot = "C:\work\opensees_windows_compilation_files"
 git clone https://github.com/nmorabowen/opensees_windows_compilation_files.git $FilePackRoot
 ```
 
+This repo contains the Windows-specific files that make this workflow reproducible on another machine or another OpenSees branch.
+
 ## 5) Create Working Tree
 
 Example:
@@ -89,6 +106,16 @@ Copy-Item "$FilePackRoot\CMakeLists.txt" .\CMakeLists.txt -Force
 Copy-Item "$FilePackRoot\cmake\cmake\OpenSeesDependenciesWin.cmake" .\cmake\cmake\OpenSeesDependenciesWin.cmake -Force
 ```
 
+This step is the important part.
+
+You are taking the Windows build harness from `opensees_windows_compilation_files` and placing it into the OpenSees source tree you want to compile.
+
+That means:
+
+- the target repo keeps its source code
+- the Windows-specific build scripts come from the file-pack repo
+- the copied `CMakeLists.txt` and `cmake\cmake\OpenSeesDependenciesWin.cmake` become the Windows porting layer used by this build flow
+
 Optional: copy the notes themselves into the target tree too:
 
 ```powershell
@@ -114,6 +141,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File SCRIPTS\build_windows11_full
 ```
 
 If MUMPS is not built yet, remove `-SkipMumps`.
+
+If you only want the Tcl executables (`OpenSees.exe`, `OpenSeesSP.exe`, `OpenSeesMP.exe`), Python is not used at runtime.
+
+If you also want `OpenSeesPy`, this workflow currently expects Python `3.11` during build because `opensees.pyd` is compiled against that Python ABI.
 
 ## 8) Artifacts You Should Get
 
@@ -210,3 +241,11 @@ The bootstrap in sections `4)` and `6)` copies these files from the `opensees_wi
 - `vcpkg.json` -> target repo root
 - `CMakeLists.txt` -> target repo root
 - `cmake\cmake\OpenSeesDependenciesWin.cmake` -> target repo `cmake\cmake\`
+
+If someone asks "what do I actually do?", the answer is:
+
+1. Install prerequisites.
+2. Clone the OpenSees repo you want to build.
+3. Clone `https://github.com/nmorabowen/opensees_windows_compilation_files`.
+4. Copy the file-pack files into the target repo.
+5. Run `SCRIPTS\build_windows11_full.ps1`.
