@@ -711,6 +711,36 @@ try {
             }
 
             $mumpsBuildDir = Join-Path $MumpsRoot "build"
+            if (Test-Path -Path $mumpsBuildDir -PathType Container) {
+                $mumpsBuildDirResolved = [System.IO.Path]::GetFullPath($mumpsBuildDir)
+                $mumpsRootResolved = [System.IO.Path]::GetFullPath($MumpsRoot)
+                $resetMumpsCache = $false
+                foreach ($cache in Get-ChildItem -Path $mumpsBuildDir -Recurse -File -Filter "CMakeCache.txt" -ErrorAction SilentlyContinue) {
+                    foreach ($entry in Get-Content -Path $cache.FullName) {
+                        if ($entry -like "CMAKE_CACHEFILE_DIR:INTERNAL=*") {
+                            $cachedBuildDir = [System.IO.Path]::GetFullPath(($entry.Split("=", 2)[1]).Trim())
+                            if (-not $cachedBuildDir.StartsWith($mumpsBuildDirResolved, [System.StringComparison]::OrdinalIgnoreCase)) {
+                                $resetMumpsCache = $true
+                                break
+                            }
+                        } elseif ($entry -like "CMAKE_HOME_DIRECTORY:INTERNAL=*") {
+                            $cachedSourceDir = [System.IO.Path]::GetFullPath(($entry.Split("=", 2)[1]).Trim())
+                            if (-not $cachedSourceDir.StartsWith($mumpsRootResolved, [System.StringComparison]::OrdinalIgnoreCase)) {
+                                $resetMumpsCache = $true
+                                break
+                            }
+                        }
+                    }
+                    if ($resetMumpsCache) {
+                        break
+                    }
+                }
+
+                if ($resetMumpsCache) {
+                    Write-Log "Resetting stale MUMPS build tree after source/build directory move." "WARN"
+                    Remove-Item -Path $mumpsBuildDir -Recurse -Force
+                }
+            }
             Invoke-Checked -FilePath $cmakeCmd -Arguments @(
                 "-S", $MumpsRoot,
                 "-B", $mumpsBuildDir,

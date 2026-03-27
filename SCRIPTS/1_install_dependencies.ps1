@@ -21,6 +21,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$script:DryRun = $DryRun.IsPresent
 
 # --------------------------------------------------------------------------
 # Helpers

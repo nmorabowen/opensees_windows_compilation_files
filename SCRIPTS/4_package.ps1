@@ -74,6 +74,11 @@ Write-Host "  OutputDir = $OutputDir"
 Write-Host "  AppName   = $AppName"
 Write-Host ""
 
+if ($DryRun) {
+    Write-Host "[DRY RUN] Packaging wrapper validation passed. Skipping installer execution." -ForegroundColor Magenta
+    exit 0
+}
+
 & $installerScript @fwdArgs
 $exitCode = $LASTEXITCODE
 

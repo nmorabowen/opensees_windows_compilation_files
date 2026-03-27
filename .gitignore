@@ -4,7 +4,9 @@ build-*/
 dist/
 vcpkg_installed/
 vcpkg_installed_dyn/
-third_party/
+third_party/*
+!third_party/mumps/
+!third_party/mumps/**
 lib/
 
 # CMake
