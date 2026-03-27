@@ -45,21 +45,21 @@ if ([string]::IsNullOrWhiteSpace($MumpsRoot)) {
     $MumpsRoot = Join-Path $RepoRoot "third_party\mumps"
 }
 
-# Build the forwarded argument list.
-$fwdArgs = @(
-    "-BuildDir",       $BuildDir,
-    "-Triplet",        $Triplet,
-    "-VcpkgRoot",      $VcpkgRoot,
-    "-MumpsRoot",      $MumpsRoot,
-    "-SmokeMode",      $SmokeMode,
-    "-SmokeTimeoutSec", $SmokeTimeoutSec
-)
+# Build the forwarded argument hashtable for splatting.
+$fwdArgs = @{
+    BuildDir       = $BuildDir
+    Triplet        = $Triplet
+    VcpkgRoot      = $VcpkgRoot
+    MumpsRoot      = $MumpsRoot
+    SmokeMode      = $SmokeMode
+    SmokeTimeoutSec = $SmokeTimeoutSec
+}
 
-if ($Parallel -gt 0) { $fwdArgs += @("-Parallel", $Parallel) }
-if ($SkipMumps)      { $fwdArgs += "-SkipMumps" }
-if ($SkipBuild)      { $fwdArgs += "-SkipBuild" }
-if ($SkipTests)      { $fwdArgs += "-SkipTests" }
-if ($DryRun)         { $fwdArgs += "-DryRun" }
+if ($Parallel -gt 0) { $fwdArgs["Parallel"] = $Parallel }
+if ($SkipMumps)      { $fwdArgs["SkipMumps"] = $true }
+if ($SkipBuild)      { $fwdArgs["SkipBuild"] = $true }
+if ($SkipTests)      { $fwdArgs["SkipTests"] = $true }
+if ($DryRun)         { $fwdArgs["DryRun"]    = $true }
 
 $buildScript = Join-Path $ScriptDir "build_windows11_full.ps1"
 

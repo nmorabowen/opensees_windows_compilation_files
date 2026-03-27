@@ -52,20 +52,20 @@ if (-not $DryRun) {
     }
 }
 
-# Build forwarded argument list.
-$fwdArgs = @(
-    "-BuildDir",  $BuildDir,
-    "-OutputDir", $OutputDir,
-    "-AppName",   $AppName,
-    "-Publisher",  $Publisher
-)
+# Build forwarded argument hashtable for splatting.
+$fwdArgs = @{
+    BuildDir  = $BuildDir
+    OutputDir = $OutputDir
+    AppName   = $AppName
+    Publisher = $Publisher
+}
 
-if ($AppVersion)         { $fwdArgs += @("-AppVersion", $AppVersion) }
-if ($IncludeExamples)    { $fwdArgs += "-IncludeExamples" }
-if ($IncludeAllExamples) { $fwdArgs += "-IncludeAllExamples" }
-if ($SkipZip)            { $fwdArgs += "-SkipZip" }
-if ($SkipInnoCompile)    { $fwdArgs += "-SkipInnoCompile" }
-if ($InnoCompilerPath)   { $fwdArgs += @("-InnoCompilerPath", $InnoCompilerPath) }
+if ($AppVersion)         { $fwdArgs["AppVersion"]         = $AppVersion }
+if ($IncludeExamples)    { $fwdArgs["IncludeExamples"]    = $true }
+if ($IncludeAllExamples) { $fwdArgs["IncludeAllExamples"] = $true }
+if ($SkipZip)            { $fwdArgs["SkipZip"]            = $true }
+if ($SkipInnoCompile)    { $fwdArgs["SkipInnoCompile"]    = $true }
+if ($InnoCompilerPath)   { $fwdArgs["InnoCompilerPath"]   = $InnoCompilerPath }
 
 Write-Host ""
 Write-Host "Launching create_el_ladruno_installer.ps1 with:" -ForegroundColor Cyan
