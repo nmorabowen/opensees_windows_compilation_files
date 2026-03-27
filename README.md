@@ -1,43 +1,97 @@
 # OpenSees Windows Compilation Files
 
-This repository is a reusable Windows 11 file pack for compiling OpenSees source trees with:
+Compile **any** OpenSees source tree on Windows 11 in four steps.
 
-- `OpenSees`
-- `OpenSeesSP`
-- `OpenSeesMP`
-- `OpenSeesPy`
+Produces: `OpenSees.exe`, `OpenSeesSP.exe`, `OpenSeesMP.exe`, `opensees.pyd`
 
-It contains the files that need to be copied into another OpenSees source tree to reuse the Windows build, MPI repair, and installer workflow.
+## Quick Start (4 scripts, in order)
 
-## Included Files
+```powershell
+# 1. Install dependencies (elevated PowerShell — run once)
+powershell -NoProfile -ExecutionPolicy Bypass -File SCRIPTS\1_install_dependencies.ps1
 
-- `SCRIPTS/build_windows11_full.ps1`
-- `SCRIPTS/init_oneapi_windows11.cmd`
-- `SCRIPTS/fix_intel_mpi_windows11.ps1`
-- `SCRIPTS/create_el_ladruno_installer.ps1`
-- `vcpkg.json`
-- `CMakeLists.txt`
-- `cmake/cmake/OpenSeesDependenciesWin.cmake`
-- `WINDOWS11_BUILD_RUNBOOK.md`
-- `WINDOWS11_BUILD_ANY_OPENSEES_SOURCE.md`
-- `WINDOWS11_INSTALLER_EL_LADRUNO.md`
+# 2. Fetch source + build harness (normal PowerShell)
+powershell -NoProfile -ExecutionPolicy Bypass -File SCRIPTS\2_fetch_source.ps1 `
+  -OpenSeesRepo "https://github.com/OpenSees/OpenSees.git"
 
-## Start Here
+# 3. Build (from the source root created by step 2)
+cd C:\work\OpenSees-src
+powershell -NoProfile -ExecutionPolicy Bypass -File SCRIPTS\3_build.ps1
 
-- Use `WINDOWS11_BUILD_ANY_OPENSEES_SOURCE.md` if you want to apply this workflow to another OpenSees source tree.
-- Use `WINDOWS11_BUILD_RUNBOOK.md` if you want the exact workflow used in the source repository this pack came from.
-- Use `WINDOWS11_INSTALLER_EL_LADRUNO.md` if you want to package a built tree into a portable zip or Windows installer.
+# 4. Package into portable zip / Windows installer (optional)
+powershell -NoProfile -ExecutionPolicy Bypass -File SCRIPTS\4_package.ps1
+```
 
-## Typical Use
+Each script prints the next step to run when it finishes.
 
-1. Clone your target OpenSees source tree.
-2. Copy these files into that tree, preserving the same relative paths.
-3. Run the prerequisite install commands in `WINDOWS11_BUILD_ANY_OPENSEES_SOURCE.md`.
-4. Build with `SCRIPTS/build_windows11_full.ps1`.
-5. Optionally package with `SCRIPTS/create_el_ladruno_installer.ps1`.
+## What Each Script Does
+
+| Script | Needs Admin? | Purpose |
+|--------|:---:|---------|
+| `1_install_dependencies.ps1` | Yes | Installs VS2022, Intel oneAPI, CMake, Ninja, Python 3.11, Git via `winget` |
+| `2_fetch_source.ps1` | No | Clones OpenSees source, vcpkg, MUMPS, and this repo; copies build harness into the source tree |
+| `3_build.ps1` | No | Configures + compiles all four targets with vcpkg, MKL, Intel MPI |
+| `4_package.ps1` | No | Stages artifacts into a portable zip and/or Inno Setup installer |
+
+All scripts support `-DryRun` to preview commands without executing.
+
+## Customization
+
+Build your own fork:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File SCRIPTS\2_fetch_source.ps1 `
+  -OpenSeesRepo "https://github.com/YOUR_USER/OpenSees.git" `
+  -OpenSeesBranch "my-branch" `
+  -WorkDir "D:\my-builds"
+```
+
+Change installer branding:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File SCRIPTS\4_package.ps1 `
+  -AppName "My OpenSees" -Publisher "My Lab"
+```
+
+## Repository Contents
+
+### Numbered workflow scripts
+- `SCRIPTS/1_install_dependencies.ps1` — prerequisite installer with verification
+- `SCRIPTS/2_fetch_source.ps1` — source + harness fetcher
+- `SCRIPTS/3_build.ps1` — build wrapper
+- `SCRIPTS/4_package.ps1` — packaging wrapper
+
+### Build harness (copied into target source tree by step 2)
+- `CMakeLists.txt` — cross-platform CMake build system
+- `vcpkg.json` — pinned dependency manifest (tcl 8.6.10, hdf5 1.14.6, eigen3 3.4.1, zlib 1.3.1, libaec 1.1.4)
+- `cmake/cmake/OpenSeesDependencies.cmake` — unified dependency discovery (all platforms)
+- `cmake/cmake/OpenSeesDependenciesWin.cmake` — legacy Windows-specific (deprecated)
+
+### Core scripts (used by the numbered wrappers)
+- `SCRIPTS/build_windows11_full.ps1` — full build orchestrator
+- `SCRIPTS/create_el_ladruno_installer.ps1` — installer/zip packager
+- `SCRIPTS/fix_intel_mpi_windows11.ps1` — Intel MPI repair (admin)
+- `SCRIPTS/init_oneapi_windows11.cmd` — oneAPI VS2022 init wrapper
+
+### Source-code patches (MSVC linker fixes)
+- `SRC/element/UWelements/Tcl_generateInterfacePoints.cpp`
+- `SRC/modelbuilder/tcl/myCommands.cpp`
+
+### Documentation
+- `WINDOWS11_BUILD_RUNBOOK.md` — detailed runbook for this repo's build
+- `WINDOWS11_BUILD_ANY_OPENSEES_SOURCE.md` — portable guide for any fork
+- `WINDOWS11_INSTALLER_EL_LADRUNO.md` — installer packaging guide
+
+## Requirements
+
+- Windows 11 (x64)
+- Visual Studio 2022 with C++ workload
+- Intel oneAPI Base Toolkit (MKL) + HPC Toolkit (ifx, Intel MPI)
+- CMake >= 3.29, Ninja, Python 3.11, Git
+
+All installed automatically by `1_install_dependencies.ps1`.
 
 ## Notes
 
-- The current workflow is pinned to Python `3.11` for `OpenSeesPy`.
-- MPI launchers assume Intel MPI on Windows.
-- The batch helper `SCRIPTS/init_oneapi_windows11.cmd` is included to avoid the Visual Studio detection warning seen on some oneAPI installs.
+- Python 3.11 is pinned for `OpenSeesPy` ABI compatibility
+- MPI launchers assume Intel MPI on Windows
+- The build system is cross-platform — `CMakeLists.txt` also works on Linux/macOS
+- Tcl is provided by vcpkg (no system Tcl install needed)

@@ -6,14 +6,27 @@ param(
     [string]$MumpsRoot = "",
     [ValidateSet("quick", "full")][string]$SmokeMode = "quick",
     [int]$SmokeTimeoutSec = 600,
+    [int]$Parallel = 0,
     [switch]$SkipMumps,
     [switch]$SkipBuild,
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$DryRun
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $script:LogFile = $null
+$script:DryRunMode = $DryRun.IsPresent
+
+# Default parallel jobs to CPU count when not specified.
+if ($Parallel -le 0) {
+    $Parallel = [Environment]::ProcessorCount
+}
+
+# Pin MUMPS to a known-good commit for reproducibility.
+# Pin MUMPS to the latest known-good commit from github.com/OpenSees/mumps.
+# Update this hash when upgrading MUMPS.
+$MumpsCommit = "ec5f340"
 
 function Write-Log {
     param(
@@ -54,6 +67,11 @@ function Invoke-Checked {
 
     $argText = ($Arguments -join " ")
     Write-Log ">> $FilePath $argText"
+
+    if ($script:DryRunMode) {
+        Write-Log "[DRY RUN] Would execute: $FilePath $argText"
+        return
+    }
 
     if ($TimeoutSec -gt 0) {
         $startParams = @{
@@ -684,6 +702,9 @@ try {
             Write-Step "Preparing and building MUMPS"
             if (-not (Test-Path -Path $MumpsRoot)) {
                 Invoke-Checked -FilePath $gitCmd -Arguments @("clone", "https://github.com/OpenSees/mumps.git", $MumpsRoot)
+                if ($MumpsCommit) {
+                    Invoke-Checked -FilePath $gitCmd -Arguments @("-C", $MumpsRoot, "checkout", $MumpsCommit)
+                }
             }
 
             $mumpsBuildDir = Join-Path $MumpsRoot "build"
@@ -699,7 +720,7 @@ try {
             Invoke-Checked -FilePath $cmakeCmd -Arguments @(
                 "--build", $mumpsBuildDir,
                 "--config", "Release",
-                "--parallel", "8"
+                "--parallel", "$Parallel"
             )
         } else {
             $mumpsBuildDir = Join-Path $MumpsRoot "build"
@@ -808,7 +829,7 @@ try {
         Invoke-Checked -FilePath $cmakeCmd -Arguments @(
             "--build", $BuildDir,
             "--target", "OpenSees", "OpenSeesPy", "OpenSeesSP", "OpenSeesMP",
-            "--parallel", "8"
+            "--parallel", "$Parallel"
         )
     } else {
         Write-Step "Skipping configure/build stages (-SkipBuild)"

@@ -1,0 +1,35 @@
+# Build artifacts (created when testing locally)
+build/
+build-*/
+dist/
+vcpkg_installed/
+vcpkg_installed_dyn/
+third_party/
+lib/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+
+# Conan
+conanbuildinfo.cmake
+conan.lock
+graph_info.json
+
+# IDE
+.vs/
+.vscode/
+.idea/
+.cache/
+
+# OS
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Python
+__pycache__/
