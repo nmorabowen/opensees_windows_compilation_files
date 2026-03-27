@@ -1,5 +1,5 @@
 #==============================================================================
-#  OpenSees Windows 11 — Step 3: Build
+#  OpenSees Windows 11 -- Step 3: Build
 #
 #  Compiles OpenSees (serial + parallel + Python module) using the build
 #  harness that was copied into the source tree by Step 2.

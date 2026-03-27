@@ -1,5 +1,5 @@
 #==============================================================================
-#  OpenSees Windows 11 — Step 4: Package / Installer
+#  OpenSees Windows 11 -- Step 4: Package / Installer
 #
 #  Creates a portable zip and (optionally) a Windows installer from the
 #  compiled build output.
