@@ -8,6 +8,8 @@ third_party/*
 !third_party/mumps/
 !third_party/mumps/**
 lib/
+!third_party/mumps/pord/lib/
+!third_party/mumps/pord/lib/**
 
 # CMake
 CMakeCache.txt
