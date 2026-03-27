@@ -7,7 +7,9 @@ Produces: `OpenSees.exe`, `OpenSeesSP.exe`, `OpenSeesMP.exe`, `opensees.pyd`
 ## Quick Start (4 scripts, in order)
 
 ```powershell
-# 1. Install dependencies (elevated PowerShell — run once)
+# 1. Install dependencies (elevated PowerShell -- run once)
+git clone https://github.com/nmorabowen/opensees_windows_compilation_files.git C:\work\harness
+cd C:\work\harness
 powershell -NoProfile -ExecutionPolicy Bypass -File SCRIPTS\1_install_dependencies.ps1
 
 # 2. Fetch source + build harness (normal PowerShell)
