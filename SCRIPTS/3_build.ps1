@@ -23,8 +23,8 @@
 param(
     [string]$BuildDir     = "build-win11",
     [string]$Triplet      = "x64-windows-static",
-    [string]$VcpkgRoot    = "",
-    [string]$MumpsRoot    = "",
+    [string]$VcpkgRoot    = "third_party\vcpkg",
+    [string]$MumpsRoot    = "third_party\mumps",
     [ValidateSet("quick", "full")][string]$SmokeMode = "quick",
     [int]$SmokeTimeoutSec = 600,
     [int]$Parallel        = 0,
@@ -40,6 +40,40 @@ $ErrorActionPreference = "Stop"
 # Resolve the repo root (one level above SCRIPTS/).
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $RepoRoot  = Split-Path -Parent $ScriptDir
+$buildScript = Join-Path $ScriptDir "build_windows11_full.ps1"
+
+function Convert-ToPowerShellArgumentString {
+    param([System.Collections.IDictionary]$Parameters)
+
+    $parts = @()
+    foreach ($entry in $Parameters.GetEnumerator()) {
+        $key = [string]$entry.Key
+        $value = $entry.Value
+
+        if ($value -is [switch]) {
+            if ($value.IsPresent) {
+                $parts += "-$key"
+            }
+            continue
+        }
+
+        if ($value -is [bool]) {
+            if ($value) {
+                $parts += "-$key"
+            }
+            continue
+        }
+
+        if ($null -eq $value) {
+            continue
+        }
+
+        $escaped = [string]$value -replace '"', '\"'
+        $parts += "-$key `"$escaped`""
+    }
+
+    return ($parts -join " ")
+}
 
 # --------------------------------------------------------------------------
 # Check if the build environment (cl, ifx) is already available.
@@ -60,25 +94,15 @@ if ((-not $clFound) -or (-not $ifxFound)) {
     Write-Host "cl/ifx not found in PATH -- initializing VS + oneAPI environment..." -ForegroundColor Yellow
     Write-Host ""
 
-    # Rebuild the command line to forward all parameters.
     $thisScript = $MyInvocation.MyCommand.Definition
-    $fwdParts = @(
-        "-BuildDir `"$BuildDir`"",
-        "-Triplet `"$Triplet`""
-    )
-    if ($VcpkgRoot)         { $fwdParts += "-VcpkgRoot `"$VcpkgRoot`"" }
-    if ($MumpsRoot)         { $fwdParts += "-MumpsRoot `"$MumpsRoot`"" }
-    $fwdParts += "-SmokeMode $SmokeMode"
-    $fwdParts += "-SmokeTimeoutSec $SmokeTimeoutSec"
-    if ($Parallel -gt 0)    { $fwdParts += "-Parallel $Parallel" }
-    if ($SkipMumps)         { $fwdParts += "-SkipMumps" }
-    if ($SkipBuild)         { $fwdParts += "-SkipBuild" }
-    if ($SkipTests)         { $fwdParts += "-SkipTests" }
-    if ($DryRun)            { $fwdParts += "-DryRun" }
-    $fwdArgsStr = $fwdParts -join " "
+    $fwdArgsStr = Convert-ToPowerShellArgumentString -Parameters $PSBoundParameters
 
     # Launch: cmd -> init_oneapi -> powershell -> this script (with env loaded)
-    $cmdLine = "call `"$initCmd`" && powershell -NoProfile -ExecutionPolicy Bypass -File `"$thisScript`" $fwdArgsStr"
+    $cmdLine = if ([string]::IsNullOrWhiteSpace($fwdArgsStr)) {
+        "call `"$initCmd`" && powershell -NoProfile -ExecutionPolicy Bypass -File `"$thisScript`""
+    } else {
+        "call `"$initCmd`" && powershell -NoProfile -ExecutionPolicy Bypass -File `"$thisScript`" $fwdArgsStr"
+    }
 
     if ($DryRun) {
         Write-Host "[DRY RUN] Would execute:" -ForegroundColor Magenta
@@ -93,32 +117,16 @@ if ((-not $clFound) -or (-not $ifxFound)) {
 # --------------------------------------------------------------------------
 # Environment is available -- proceed with the build.
 # --------------------------------------------------------------------------
-
-# Default vcpkg and MUMPS locations match Step 2 layout.
-if ([string]::IsNullOrWhiteSpace($VcpkgRoot)) {
-    $VcpkgRoot = Join-Path $RepoRoot "third_party\vcpkg"
+$fwdArgs = @{}
+if (-not $PSBoundParameters.ContainsKey("VcpkgRoot")) {
+    $fwdArgs["VcpkgRoot"] = $VcpkgRoot
 }
-if ([string]::IsNullOrWhiteSpace($MumpsRoot)) {
-    $MumpsRoot = Join-Path $RepoRoot "third_party\mumps"
+if (-not $PSBoundParameters.ContainsKey("MumpsRoot")) {
+    $fwdArgs["MumpsRoot"] = $MumpsRoot
 }
-
-# Build the forwarded argument hashtable for splatting.
-$fwdArgs = @{
-    BuildDir        = $BuildDir
-    Triplet         = $Triplet
-    VcpkgRoot       = $VcpkgRoot
-    MumpsRoot       = $MumpsRoot
-    SmokeMode       = $SmokeMode
-    SmokeTimeoutSec = $SmokeTimeoutSec
+foreach ($entry in $PSBoundParameters.GetEnumerator()) {
+    $fwdArgs[$entry.Key] = $entry.Value
 }
-
-if ($Parallel -gt 0) { $fwdArgs["Parallel"] = $Parallel }
-if ($SkipMumps)      { $fwdArgs["SkipMumps"] = $true }
-if ($SkipBuild)      { $fwdArgs["SkipBuild"] = $true }
-if ($SkipTests)      { $fwdArgs["SkipTests"] = $true }
-if ($DryRun)         { $fwdArgs["DryRun"]    = $true }
-
-$buildScript = Join-Path $ScriptDir "build_windows11_full.ps1"
 
 if (-not (Test-Path $buildScript)) {
     Write-Host "[FAIL] Build script not found: $buildScript" -ForegroundColor Red
@@ -128,9 +136,12 @@ if (-not (Test-Path $buildScript)) {
 
 Write-Host ""
 Write-Host "Launching build_windows11_full.ps1 with:" -ForegroundColor Cyan
-Write-Host "  VcpkgRoot  = $VcpkgRoot"
-Write-Host "  MumpsRoot  = $MumpsRoot"
 Write-Host "  BuildDir   = $BuildDir"
+Write-Host "  Triplet    = $Triplet"
+Write-Host "  VcpkgRoot  = $($fwdArgs['VcpkgRoot'])"
+Write-Host "  MumpsRoot  = $($fwdArgs['MumpsRoot'])"
+Write-Host "  SmokeMode  = $SmokeMode"
+Write-Host "  Parallel   = $Parallel"
 Write-Host ""
 
 & $buildScript @fwdArgs
