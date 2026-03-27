@@ -4,10 +4,14 @@
 #  Compiles OpenSees (serial + parallel + Python module) using the build
 #  harness that was copied into the source tree by Step 2.
 #
+#  This script automatically initializes the Visual Studio and Intel oneAPI
+#  environment if cl/ifx are not already available.  It does this by
+#  re-launching itself inside a cmd shell that first calls
+#  init_oneapi_windows11.cmd.
+#
 #  Usage (normal PowerShell from the OpenSees source root):
 #    powershell -NoProfile -ExecutionPolicy Bypass -File SCRIPTS\3_build.ps1
 #
-#  All parameters are forwarded to build_windows11_full.ps1.
 #  Common overrides:
 #    -SkipMumps          MUMPS already built from a previous run
 #    -SkipTests          Skip smoke tests after build
@@ -37,6 +41,59 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $RepoRoot  = Split-Path -Parent $ScriptDir
 
+# --------------------------------------------------------------------------
+# Check if the build environment (cl, ifx) is already available.
+# If not, re-launch this entire script inside a cmd shell that first
+# calls init_oneapi_windows11.cmd to set up VS + oneAPI.
+# --------------------------------------------------------------------------
+$clFound  = $null -ne (Get-Command cl  -ErrorAction SilentlyContinue)
+$ifxFound = $null -ne (Get-Command ifx -ErrorAction SilentlyContinue)
+
+if ((-not $clFound) -or (-not $ifxFound)) {
+    $initCmd = Join-Path $ScriptDir "init_oneapi_windows11.cmd"
+    if (-not (Test-Path $initCmd)) {
+        Write-Host "[FAIL] cl/ifx not in PATH and init_oneapi_windows11.cmd not found." -ForegroundColor Red
+        Write-Host "  Initialize your VS + oneAPI environment manually, then re-run." -ForegroundColor Yellow
+        exit 1
+    }
+
+    Write-Host "cl/ifx not found in PATH -- initializing VS + oneAPI environment..." -ForegroundColor Yellow
+    Write-Host ""
+
+    # Rebuild the command line to forward all parameters.
+    $thisScript = $MyInvocation.MyCommand.Definition
+    $fwdParts = @(
+        "-BuildDir `"$BuildDir`"",
+        "-Triplet `"$Triplet`""
+    )
+    if ($VcpkgRoot)         { $fwdParts += "-VcpkgRoot `"$VcpkgRoot`"" }
+    if ($MumpsRoot)         { $fwdParts += "-MumpsRoot `"$MumpsRoot`"" }
+    $fwdParts += "-SmokeMode $SmokeMode"
+    $fwdParts += "-SmokeTimeoutSec $SmokeTimeoutSec"
+    if ($Parallel -gt 0)    { $fwdParts += "-Parallel $Parallel" }
+    if ($SkipMumps)         { $fwdParts += "-SkipMumps" }
+    if ($SkipBuild)         { $fwdParts += "-SkipBuild" }
+    if ($SkipTests)         { $fwdParts += "-SkipTests" }
+    if ($DryRun)            { $fwdParts += "-DryRun" }
+    $fwdArgsStr = $fwdParts -join " "
+
+    # Launch: cmd -> init_oneapi -> powershell -> this script (with env loaded)
+    $cmdLine = "call `"$initCmd`" && powershell -NoProfile -ExecutionPolicy Bypass -File `"$thisScript`" $fwdArgsStr"
+
+    if ($DryRun) {
+        Write-Host "[DRY RUN] Would execute:" -ForegroundColor Magenta
+        Write-Host "  cmd /d /s /c $cmdLine" -ForegroundColor Magenta
+        exit 0
+    }
+
+    cmd.exe /d /s /c $cmdLine
+    exit $LASTEXITCODE
+}
+
+# --------------------------------------------------------------------------
+# Environment is available -- proceed with the build.
+# --------------------------------------------------------------------------
+
 # Default vcpkg and MUMPS locations match Step 2 layout.
 if ([string]::IsNullOrWhiteSpace($VcpkgRoot)) {
     $VcpkgRoot = Join-Path $RepoRoot "third_party\vcpkg"
@@ -47,11 +104,11 @@ if ([string]::IsNullOrWhiteSpace($MumpsRoot)) {
 
 # Build the forwarded argument hashtable for splatting.
 $fwdArgs = @{
-    BuildDir       = $BuildDir
-    Triplet        = $Triplet
-    VcpkgRoot      = $VcpkgRoot
-    MumpsRoot      = $MumpsRoot
-    SmokeMode      = $SmokeMode
+    BuildDir        = $BuildDir
+    Triplet         = $Triplet
+    VcpkgRoot       = $VcpkgRoot
+    MumpsRoot       = $MumpsRoot
+    SmokeMode       = $SmokeMode
     SmokeTimeoutSec = $SmokeTimeoutSec
 }
 
