@@ -91,10 +91,9 @@ function Invoke-WingetInstall {
 # --------------------------------------------------------------------------
 Write-Banner "OpenSees Windows 11 -- Dependency Installer"
 
-if ((-not $DryRun) -and (-not (Test-Elevated))) {
+if (-not (Test-Elevated)) {
     Write-Fail "This script must run in an elevated (Administrator) PowerShell."
     Write-Host "  Right-click PowerShell -> Run as Administrator, then re-run." -ForegroundColor Yellow
-    Write-Host "  Or use -DryRun to preview without installing." -ForegroundColor Yellow
     exit 1
 }
 
@@ -219,7 +218,16 @@ if ($SkipVerification -or $DryRun) {
     $oneapiSetvars = "${env:ProgramFiles(x86)}\Intel\oneAPI\setvars.bat"
     if (Test-Path $oneapiSetvars) {
         Write-Host "  setvars.bat found: $oneapiSetvars"
-        $checkCmd = "call `"$oneapiSetvars`" intel64 >nul 2>&1 & where ifx & where mpiexec"
+        $checkCmdParts = @()
+        if ($vsPath) {
+            $checkCmdParts += "set `"VS2022INSTALLDIR=$($vsPath.Trim())`""
+        }
+        $checkCmdParts += @(
+            "call `"$oneapiSetvars`" intel64 >nul 2>&1",
+            "where ifx",
+            "where mpiexec"
+        )
+        $checkCmd = $checkCmdParts -join " && "
         $result = cmd /c $checkCmd 2>&1
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  ifx and mpiexec found after oneAPI init"

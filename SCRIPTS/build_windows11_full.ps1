@@ -566,6 +566,9 @@ try {
     Import-BatchEnvironment -BatchPath $vsDevCmdPath -Arguments "-arch=x64 -host_arch=x64"
 
     Write-Step "Loading Intel oneAPI environment"
+    # oneAPI relies on VS2022INSTALLDIR on some systems even when VsDevCmd was
+    # already loaded in the current shell.
+    $env:VS2022INSTALLDIR = $vsInstallPath
     $programFilesX86 = [Environment]::GetFolderPath("ProgramFilesX86")
     $setvarsPath = Join-Path $programFilesX86 "Intel\oneAPI\setvars.bat"
     Import-BatchEnvironment -BatchPath $setvarsPath -Arguments "intel64"
